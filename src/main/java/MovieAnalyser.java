@@ -1,3 +1,4 @@
+import java.time.Duration;
 import java.util.*;
 
 public class MovieAnalyser {
@@ -8,7 +9,7 @@ public class MovieAnalyser {
     public final Queue<Movie> top5 = new PriorityQueue<>(Comparator.comparingDouble(m -> m.imdb));
     public Movie oldest = null;
     public Movie newest = null;
-    public long totalMinutes = 0L;
+    public Duration totalMinutes = Duration.ofMinutes(0L);
 
     public void analyze(Movie m) {
         genreCount.merge(m.genre, 1, Integer::sum);
@@ -16,12 +17,15 @@ public class MovieAnalyser {
         updateOldestNewest(m);
         updateHighestLowestRated(m);
         updateTop5(m);
-        totalMinutes += m.runtimeMinutes;
+        totalMinutes = totalMinutes.plusMinutes(m.runtimeMinutes);
     }
 
     private void updateOldestNewest(Movie m) {
         if (m.premiere == null) return;
-        if (oldest == null || m.premiere.isBefore(oldest.premiere)) oldest = m;
+        if (oldest == null || m.premiere.isBefore(oldest.premiere)){
+            oldest = m;
+            return;
+        }
         if (newest == null || m.premiere.isAfter(newest.premiere)) newest = m;
     }
 
