@@ -1,99 +1,119 @@
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.time.LocalDate;
-import java.util.Map;
-import java.util.Queue;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class Task1Test {
-    private Task1 task;
+    private MovieParser parser;
+    private MovieAnalyser analyser;
 
     @BeforeEach
-    void setUp() {
-        task = new Task1();
+    void setup() {
+        parser = new MovieParser();
+        analyser = new MovieAnalyser();
+    }
 
-        // сбрасываем все статические поля перед каждым тестом
-        Task1.genreCount.clear();
-        Task1.languageCount.clear();
-        Task1.oldest = null;
-        Task1.newest = null;
-        Task1.totalMinutes = 0L;
+    // ---------- MovieParser ----------
+    @Test
+    void testParseCSVLine() {
+        String line = "\"The Irishman\",Drama,\"November 1, 2019\",209 min,7.8,English";
+        Movie m = parser.parseCSVLine(line);
+
+        assertNotNull(m);
+        assertEquals("The Irishman", m.title);
+        assertEquals("Drama", m.genre);
+        assertEquals("English", m.language);
+        assertEquals(LocalDate.of(2019, 11, 1), m.premiere);
+        assertEquals(209, m.runtimeMinutes);
+        assertEquals(7.8, m.imdb);
     }
 
     @Test
-    void testParseToMovie_validLine() {
-        String line = "\"Movie A\",Action,\"June 26, 2015\",120 min,7.8,English";
-        Task1.Movie movie = task.parseToMovie(line);
+    void testParseInvalidLine() {
+        String invalid = "Incomplete,Data,Here";
+        Movie m = parser.parseCSVLine(invalid);
+        assertNull(m);
+    }
 
-        assertNotNull(movie);
-        assertEquals("Movie A", movie.title);
-        assertEquals("Action", movie.genre);
-        assertEquals("English", movie.language);
-        assertEquals(120, movie.runtimeMinutes);
-        assertEquals(7.8, movie.imdb);
-        assertEquals(LocalDate.of(2015, 6, 26), movie.premiere);
+    // ---------- MovieAnalyser ----------
+    @Test
+    void testGenreAndLanguageCount() {
+        Movie m1 = new Movie("Film1", "Action", "English", LocalDate.of(2020, 5, 1), 120, 8.2);
+        Movie m2 = new Movie("Film2", "Drama", "Spanish", LocalDate.of(2018, 6, 10), 90, 7.1);
+        Movie m3 = new Movie("Film3", "Action", "English", LocalDate.of(2019, 3, 15), 110, 8.0);
+
+        analyser.analyze(m1);
+        analyser.analyze(m2);
+        analyser.analyze(m3);
+
+        assertEquals(2, analyser.genreCount.size());
+        assertEquals(2, analyser.languageCount.size());
+        assertEquals(2, analyser.genreCount.get("Action"));
+        assertEquals(2, analyser.languageCount.get("English"));
     }
 
     @Test
-    void testParseToMovie_invalidLine() {
-        String line = "invalid,data,line";
-        Task1.Movie movie = task.parseToMovie(line);
-        assertNull(movie);
+    void testOldestAndNewest() {
+        Movie m1 = new Movie("Old", "Drama", "English", LocalDate.of(2001, 1, 1), 100, 6.0);
+        Movie m2 = new Movie("New", "Action", "English", LocalDate.of(2022, 12, 31), 120, 9.0);
+
+        analyser.analyze(m1);
+        analyser.analyze(m2);
+
+        assertEquals("Old", analyser.oldest.title);
+        assertEquals("New", analyser.newest.title);
     }
 
     @Test
-    void testUpdateOldestNewest() {
-        Task1.Movie m1 = new Task1.Movie("Old", "Drama", "English", LocalDate.of(2010, 1, 1), 100, 7.0);
-        Task1.Movie m2 = new Task1.Movie("New", "Action", "English", LocalDate.of(2020, 1, 1), 100, 8.0);
+    void testHighestLowestRated() {
+        Movie m1 = new Movie("Good", "Drama", "English", LocalDate.of(2020, 1, 1), 100, 9.5);
+        Movie m2 = new Movie("Bad", "Drama", "English", LocalDate.of(2020, 2, 1), 90, 3.2);
 
-        task.analyzeMovie(m1);
-        task.analyzeMovie(m2);
+        analyser.analyze(m1);
+        analyser.analyze(m2);
 
-        assertEquals("Old", Task1.oldest.title);
-        assertEquals("New", Task1.newest.title);
-    }
-
-    @Test
-    void testGenreAndLanguageCounts() {
-        Task1.Movie m1 = new Task1.Movie("A", "Drama", "English", LocalDate.now(), 100, 8.0);
-        Task1.Movie m2 = new Task1.Movie("B", "Drama", "French", LocalDate.now(), 90, 7.5);
-        Task1.Movie m3 = new Task1.Movie("C", "Action", "English", LocalDate.now(), 110, 8.5);
-
-        task.analyzeMovie(m1);
-        task.analyzeMovie(m2);
-        task.analyzeMovie(m3);
-
-        Map<String, Integer> genres = Task1.genreCount;
-        Map<String, Integer> languages = Task1.languageCount;
-
-        assertEquals(2, genres.get("Drama"));
-        assertEquals(1, genres.get("Action"));
-        assertEquals(2, languages.get("English"));
-        assertEquals(1, languages.get("French"));
+        assertEquals("Good", analyser.highestRated.get(2020).title);
+        assertEquals("Bad", analyser.lowestRated.get(2020).title);
     }
 
     @Test
     void testTop5Movies() {
         for (int i = 1; i <= 10; i++) {
-            task.analyzeMovie(new Task1.Movie("Movie" + i, "Action", "English", LocalDate.now(), 100, i));
+            Movie m = new Movie("Film" + i, "Genre", "English", LocalDate.of(2020, 1, i), 100, i); // imdb от 1 до 10
+            analyser.analyze(m);
         }
 
-        Queue<Task1.Movie> top5 = task.top5;
-
-        assertEquals(5, top5.size());
-        assertTrue(top5.stream().allMatch(m -> m.imdb > 5)); // в топе должны остаться фильмы с рейтингом 6–10
+        assertEquals(5, analyser.top5.size());
+        assertTrue(analyser.top5.stream().allMatch(m -> m.imdb >= 6)); // top5 → imdb ≥ 6
     }
 
     @Test
-    void testTotalMinutesAccumulation() {
-        Task1.Movie m1 = new Task1.Movie("A", "Drama", "English", LocalDate.now(), 100, 7.0);
-        Task1.Movie m2 = new Task1.Movie("B", "Drama", "English", LocalDate.now(), 200, 8.0);
+    void testTotalRuntime() {
+        Movie m1 = new Movie("Film1", "Drama", "English", LocalDate.of(2020, 1, 1), 100, 8.0);
+        Movie m2 = new Movie("Film2", "Action", "English", LocalDate.of(2021, 1, 1), 150, 9.0);
 
-        task.analyzeMovie(m1);
-        task.analyzeMovie(m2);
+        analyser.analyze(m1);
+        analyser.analyze(m2);
 
-        assertEquals(300L, Task1.totalMinutes);
+        assertEquals(250, analyser.totalMinutes);
+    }
+
+    // ---------- CSVReader ----------
+    @Test
+    void testCSVReader() throws IOException {
+        // создаём временный файл с CSV-данными
+        java.nio.file.Path temp = java.nio.file.Files.createTempFile("movies", ".csv");
+        java.nio.file.Files.write(temp, List.of("Title,Genre,Premiere,Runtime,IMDB,Language", "\"Movie1\",Action,\"January 1, 2020\",120 min,8.5,English"));
+
+        CSVReader reader = new CSVReader();
+        List<String> lines = reader.readCSVFile(temp.toString());
+
+        assertEquals(1, lines.size());
+        assertTrue(lines.get(0).contains("Movie1"));
     }
 }
