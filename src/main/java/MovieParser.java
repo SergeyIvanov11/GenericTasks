@@ -3,7 +3,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 public class MovieParser {
-    public final String REGEX = ",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)";
+   // public final String REGEX = ",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)";
+   public final String REGEX = ",";
     public final String DATE_PATTERN = "MMMM d, yyyy";
 
     public Movie parseCSVLine(String line) {
